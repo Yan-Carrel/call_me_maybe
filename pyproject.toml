@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "numpy>=2.2.6",
     "pydantic>=2.13.5",
-    "llm-sdk"
+    "llm-sdk",
 ]
 
 [project.scripts]
