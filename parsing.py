@@ -18,13 +18,13 @@ def parsing() -> tuple[list[Prompt], list[FunctionDefinition]]:
         funcs_def_list = []
         try:
             funcs_def_list = json.load(funcs_def_file)
-        except Exception:
+        except json.JSONDecodeError:
             print("Error, json file is invalid.")
     with open(args.input, "r") as input_file:
         input_list = []
         try:
             input_list = json.load(input_file)
-        except Exception:
+        except json.JSONDecodeError:
             print("Error, json file is invalid.")
 
     return (
@@ -45,7 +45,7 @@ def parse_function_calling(input_list: list[dict[str, Any]]) -> list[Prompt]:
                     )
                 sys.exit(0)
             try:
-                prompts.append(Prompt(prompt_key=key, prompt_value=value))
+                prompts.append(Prompt(key=key, value=value))
             except ValidationError as e:
                 errors = e.errors()[0]
                 print(errors['msg'])

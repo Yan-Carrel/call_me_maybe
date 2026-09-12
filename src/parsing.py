@@ -45,7 +45,7 @@ def parse_function_calling(input_list: list[dict[str, Any]]) -> list[Prompt]:
                     )
                 sys.exit(0)
             try:
-                prompts.append(Prompt(prompt_key=key, prompt_value=value))
+                prompts.append(Prompt(key=key, value=value))
             except ValidationError as e:
                 errors = e.errors()[0]
                 print(errors['msg'])

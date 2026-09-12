@@ -3,8 +3,8 @@ from typing import Self
 
 
 class Prompt(BaseModel):
-    prompt_key: str
-    prompt_value: str
+    key: str
+    value: str
 
     @model_validator(mode='after')
     def validate_name(self) -> Self:
