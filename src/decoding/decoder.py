@@ -15,7 +15,8 @@ class Decoder:
         self.vocabs = vocabs
 
     def generation_loop(self) -> None:
-        generator = Generator(self.llm, self.vocabs)
+        generator = Generator(self.llm, self.vocabs, self.funcs_def)
         for prompt in self.prompts:
             tokens = self.llm.encode(prompt.value)
             result = generator.generate(prompt, tokens)
+            print(f"\n{result[len(prompt.value):]}")

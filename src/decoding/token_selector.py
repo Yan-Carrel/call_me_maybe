@@ -1,5 +1,31 @@
-def append_best_token(function_names: list[str]) -> str:
-    result = ""
+from llm_sdk import Small_LLM_Model
+from src.models import FunctionDefinition
+
+
+def append_best_token(
+    llm: Small_LLM_Model, tokens: list[int],
+    funcs_def: list[FunctionDefinition], vocabs: dict[str, int]
+        ) -> str:
+    functions_token = [llm.encode(funct) for funct in funcs_def]
+    tokens_list = list(map(lambda x: x.squeeze(0).tolist(), functions_token))
+    i = 0
+    result_token = []
+    while i < len(max(tokens_list, key=len)):
+        tokens_to_choose = []
+        for token in tokens_list:
+            if i < len(token):
+                tokens_to_choose.append(token[i])
+        if tokens_to_choose == []:
+            break
+        logits = llm.get_logits_from_input_ids(tokens)
+        best_token_id = max(tokens_to_choose, key=lambda token_id: logits[token_id])
+        tokens.append(best_token_id)
+        result_token.append(best_token_id)
+        if any(llm.decode(result_token) == funct for funct in funcs_def):
+            break
+        i += 1
+    result = llm.decode(tokens)
+    return result
 
 def append_token(character: str, tokens: list[int], vocabs: dict[str, int]) -> None:
     try:
