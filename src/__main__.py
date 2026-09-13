@@ -1,5 +1,5 @@
 import json
-from .decoder import Decoder
+from src.decoding import Decoder
 from parsing import parsing
 from src.llm_sdk import Small_LLM_Model
 

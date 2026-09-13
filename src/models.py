@@ -8,7 +8,7 @@ class Prompt(BaseModel):
 
     @model_validator(mode='after')
     def validate_name(self) -> Self:
-        if self.prompt_key != "prompt":
+        if self.key != "prompt":
             raise ValueError("function_calling's key should be 'prompt'")
         return self
 
