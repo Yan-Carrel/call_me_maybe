@@ -21,4 +21,7 @@ class Decoder:
             tokens_str = prompt.value + "\navailable functions:\n" + "\n".join(available_functs)
             tokens = self.llm.encode(tokens_str)
             result = generator.generate(prompt, tokens)
-            print(f"\n{result[len(tokens_str):]}")
+            print(result)
+            import sys
+            sys.exit(0)
+            # print(f"\n{result[len(tokens_str):]}")
