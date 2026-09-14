@@ -16,8 +16,8 @@ class Generator:
     def generate(self, prompt: Prompt, tokens_tensor: Tensor) -> str:
         tokens = tokens_tensor.squeeze(0).tolist()
         result = self.generate_prompt(prompt, tokens)
-        result, chosen_funct = self.generate_function_name(tokens)
-        # result = self.generate_parameters(tokens)
+        result, selected_funct = self.generate_function_name(tokens)
+        result = self.generate_parameters(tokens, prompt, selected_funct)
         return result
 
     def generate_prompt(self, prompt: Prompt, tokens: list[int]) -> str:
@@ -30,7 +30,7 @@ class Generator:
         return self.llm.decode(tokens)
 
     def generate_function_name(
-        self, tokens: list[int]
+        self, tokens: list[int],
             ) -> tuple[str, FunctionDefinition]:
         generation_order = [
             '"name":', "\"", [
@@ -49,10 +49,32 @@ class Generator:
         return result, funct
     
     def generate_parameters(
-        self, tokens: list[int],
+        self, tokens: list[int], prompt: Prompt,
         selected_funct: FunctionDefinition
             ) -> str:
-        generation_order = ['"parameters:"', "{"]
+        generation_order = ['"parameters":', "{",]
+        i = 0
+        while i < len(selected_funct.parameters):
+            generation_order.extend(["\"", 1, "\"", ":", "\"", 0, "\""])
+            if i < len(selected_funct.parameters) - 1:
+                generation_order.append(",")
+            i += 1
+        generation_order.extend(["}", "}"])
+        for character in generation_order:
+            if isinstance(character, str):
+                append_token(character, tokens, self.vocabs)
+            else:
+                if character == 1:
+                    possible_tokens = [param for param in selected_funct.parameters]
+                else:
+                    possible_tokens = [s for s in prompt.value if s not in selected_funct.parameters]
+                    for param in selected_funct.parameters:
+                        possible_tokens.append(selected_funct.parameters[param]["type"])
+                append_best_token(self.llm, tokens, possible_tokens, self.vocabs)
+                parameter = []
+                logits = self.llm.get_logits_from_input_ids(tokens)
+        result = self.llm.decode(tokens)
+        return result
 
     def split_character(self, string: str) -> list[str]:
         words = string.split(" ")

@@ -16,12 +16,21 @@ class Decoder:
 
     def generation_loop(self) -> None:
         generator = Generator(self.llm, self.vocabs, self.funcs_def)
-        available_functs = [f"{funct.name}: {funct.description}" for funct in self.funcs_def]
+        # available_functs = [funct for funct in self.funcs_def]
+        available_functs_list = []
+        for funct in self.funcs_def:
+            s = ""
+            s += f"{funct.name} | {funct.description} | parameters:"
+            for param in funct.parameters:
+                s += f" {param}={funct.parameters[param]["type"]}"
+            available_functs_list.append(s)
+        available_functs = "\n".join(available_functs_list)
         for prompt in self.prompts:
-            tokens_str = prompt.value + "\navailable functions:\n" + "\n".join(available_functs)
+            tokens_str = prompt.value + "\navailable functions:\n" + available_functs
             tokens = self.llm.encode(tokens_str)
             result = generator.generate(prompt, tokens)
-            print(result)
-            import sys
-            sys.exit(0)
-            # print(f"\n{result[len(tokens_str):]}")
+            # print(tokens_str)
+            # print(result)
+            # import sys
+            # sys.exit(0)
+            print(f"\n{result[len(tokens_str):]}")

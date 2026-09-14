@@ -4,9 +4,9 @@ from src.models import FunctionDefinition
 
 def append_best_token(
     llm: Small_LLM_Model, tokens: list[int],
-    funcs_def_name: list[str], vocabs: dict[str, int]
+    possible_tokens: list[str], vocabs: dict[str, int]
         ) -> str:
-    functions_token = [llm.encode(funct) for funct in funcs_def_name]
+    functions_token = [llm.encode(funct) for funct in possible_tokens]
     tokens_list = list(map(lambda x: x.squeeze(0).tolist(), functions_token))
     i = 0
     result_token = []
@@ -21,7 +21,7 @@ def append_best_token(
         best_token_id = max(tokens_to_choose, key=lambda token_id: logits[token_id])
         tokens.append(best_token_id)
         result_token.append(best_token_id)
-        if any(llm.decode(result_token) == funct for funct in funcs_def_name):
+        if any(llm.decode(result_token) == funct for funct in possible_tokens):
             break
         i += 1
     result = llm.decode(tokens)
