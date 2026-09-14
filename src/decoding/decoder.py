@@ -16,7 +16,9 @@ class Decoder:
 
     def generation_loop(self) -> None:
         generator = Generator(self.llm, self.vocabs, self.funcs_def)
+        available_functs = [f"{funct.name}: {funct.description}" for funct in self.funcs_def]
         for prompt in self.prompts:
-            tokens = self.llm.encode(prompt.value)
+            tokens_str = prompt.value + "\navailable functions:\n" + "\n".join(available_functs)
+            tokens = self.llm.encode(tokens_str)
             result = generator.generate(prompt, tokens)
-            print(f"\n{result[len(prompt.value):]}")
+            print(f"\n{result[len(tokens_str):]}")

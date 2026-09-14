@@ -3,7 +3,7 @@ import json
 import argparse
 from typing import Any
 from pydantic import ValidationError
-from models import Prompt, FunctionDefinition
+from src.models import Prompt, FunctionDefinition
 
 
 def parsing() -> tuple[list[Prompt], list[FunctionDefinition]]:
