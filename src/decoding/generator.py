@@ -13,11 +13,14 @@ class Generator:
         self.vocabs = vocabs
         self.funcs_def = funcs_def
     
-    def generate(self, prompt: Prompt, tokens_tensor: Tensor) -> str:
+    def generate(
+        self, prompt: Prompt, tokens_tensor: Tensor, len_srt: int
+            ) -> str:
         tokens = tokens_tensor.squeeze(0).tolist()
         result = self.generate_prompt(prompt, tokens)
         result, selected_funct = self.generate_function_name(tokens)
         result = self.generate_parameters(tokens, prompt, selected_funct)
+        print()
         return result
 
     def generate_prompt(self, prompt: Prompt, tokens: list[int]) -> str:
@@ -26,7 +29,7 @@ class Generator:
         generation_order.append("\",")
 
         for character in generation_order:
-            append_token(character, tokens, self.vocabs)
+            append_token(self.llm, character, tokens, self.vocabs)
         return self.llm.decode(tokens)
 
     def generate_function_name(
@@ -39,7 +42,7 @@ class Generator:
                 ]
         for item in generation_order:
             if isinstance(item, str):
-                append_token(item, tokens, self.vocabs)
+                append_token(self.llm, item, tokens, self.vocabs)
             else:
                 append_best_token(self.llm, tokens, item, self.vocabs)
         result = self.llm.decode(tokens)
@@ -55,24 +58,23 @@ class Generator:
         generation_order = ['"parameters":', "{",]
         i = 0
         while i < len(selected_funct.parameters):
-            generation_order.extend(["\"", 1, "\"", ":", "\"", 0, "\""])
+            generation_order.extend(["\"", True, "\"", ":", "\"", False, "\""])
             if i < len(selected_funct.parameters) - 1:
                 generation_order.append(",")
             i += 1
         generation_order.extend(["}", "}"])
+        choosed_values = []
+        param_index = 0
         for character in generation_order:
             if isinstance(character, str):
-                append_token(character, tokens, self.vocabs)
+                append_token(self.llm, character, tokens, self.vocabs)
             else:
-                if character == 1:
-                    possible_tokens = [param for param in selected_funct.parameters]
-                else:
-                    possible_tokens = [s for s in prompt.value if s not in selected_funct.parameters]
-                    for param in selected_funct.parameters:
-                        possible_tokens.append(selected_funct.parameters[param]["type"])
-                append_best_token(self.llm, tokens, possible_tokens, self.vocabs)
+                possible_tokens = get_possible_tokens(prompt, character, selected_funct, param_index, choosed_values)
+                choosed_values.append(append_best_token(self.llm, tokens, possible_tokens, self.vocabs))
                 parameter = []
                 logits = self.llm.get_logits_from_input_ids(tokens)
+                if character == False:
+                    param_index += 1
         result = self.llm.decode(tokens)
         return result
 
@@ -82,3 +84,18 @@ class Generator:
         result = [words[0]] if words[0] else []
         result += ["Ġ" + w for w in words[1:]]
         return result
+
+def get_possible_tokens(
+    prompt: Prompt, isparam: bool, selected_funct: FunctionDefinition,
+    param_index: int, choosed_values: list[str]
+        ) -> list[str]:
+    possible_tokens = []
+    params = [param for param in selected_funct.parameters]
+    if isparam:
+        return params
+    else:
+        if selected_funct.parameters[params[param_index]]["type"] == "number":
+            possible_tokens = [s for s in prompt.value.split(" ") if s.isdigit() and s not in choosed_values]
+        else:
+            possible_tokens = [s for s in prompt.value.split(" ") if not s.isdigit() and s not in choosed_values]
+    return possible_tokens

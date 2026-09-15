@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from src.models import Prompt, FunctionDefinition
 
 
-def parsing() -> tuple[list[Prompt], list[FunctionDefinition]]:
+def parsing() -> tuple[list[Prompt], list[FunctionDefinition], str]:
     parser = argparse.ArgumentParser(
         description="Process function calling data.")
     parser.add_argument('--functions_definition', required=True)
@@ -29,7 +29,7 @@ def parsing() -> tuple[list[Prompt], list[FunctionDefinition]]:
 
     return (
         parse_function_calling(input_list),
-        parse_functions_definition(funcs_def_list))
+        parse_functions_definition(funcs_def_list), args.functions_definition)
 
 
 def parse_function_calling(input_list: list[dict[str, Any]]) -> list[Prompt]:
