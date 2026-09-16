@@ -17,18 +17,20 @@ class Decoder:
 
     def generation_loop(self) -> None:
         generator = Generator(self.llm, self.vocabs, self.funcs_def)
-        # available_functs = [funct for funct in self.funcs_def]
         available_functs_list = []
-        # for funct in self.funcs_def:
-        #     s = ""
-        #     s += f"{funct.name} | {funct.description} | parameters:"
-        #     for param in funct.parameters:
-        #         s += f" {param}={funct.parameters[param]['type']}"
-        #     available_functs_list.append(s)
-        # available_functs = "\n".join(available_functs_list)
-        # print(type(self.prompts))
         for prompt in self.prompts:
-            # tokens_str = prompt.value + "\navailable functions:\n" + available_functs
-            tokens_str = prompt.value + self.funcs_def_json
+            tokens_str = (
+                "System: You are a function calling assistant. "
+                "Given a user prompt and a list of available "
+                "functions with their parameters and descriptions, "
+                "choose the appropriate function and extract its parameters.\n"
+                "Functions:"
+            )
+            for funct in self.funcs_def:
+                funct_str = f"\n- {funct.name}: {funct.description} Parameters: "
+                for parameter in funct.parameters:
+                    funct_str += f"{parameter} ({funct.parameters[parameter]["type"]})"
+                tokens_str += funct_str
+            tokens_str += f"\n{prompt.value}\nAssistant: "
             tokens = self.llm.encode(tokens_str)
             result = generator.generate(prompt, tokens, len(tokens_str))

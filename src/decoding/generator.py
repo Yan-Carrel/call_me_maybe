@@ -35,20 +35,23 @@ class Generator:
     def generate_function_name(
         self, tokens: list[int],
             ) -> tuple[str, FunctionDefinition]:
+        possible_names = [funct.name for funct in self.funcs_def]
         generation_order = [
-            '"name":', "\"", [
-                funct.name for funct in self.funcs_def
-                ], "\"", ","
+            '"name":', "\"", possible_names, "\"", ","
                 ]
+        selected_name = ""
         for item in generation_order:
             if isinstance(item, str):
                 append_token(self.llm, item, tokens, self.vocabs)
             else:
-                append_best_token(self.llm, tokens, item, self.vocabs)
+                selected_tokens = append_best_token(
+                    self.llm, tokens, item, self.vocabs
+                )
+                selected_name = self.llm.decode(selected_tokens)
         result = self.llm.decode(tokens)
         funct = next(
             funct for funct in self.funcs_def
-            if result.endswith(funct.name + '",'))
+            if funct.name == selected_name)
         return result, funct
     
     def generate_parameters(
@@ -70,10 +73,9 @@ class Generator:
                 append_token(self.llm, character, tokens, self.vocabs)
             else:
                 possible_tokens = get_possible_tokens(prompt, character, selected_funct, param_index, choosed_values)
-                choosed_values.append(append_best_token(self.llm, tokens, possible_tokens, self.vocabs))
-                parameter = []
-                logits = self.llm.get_logits_from_input_ids(tokens)
+                selected_tokens = append_best_token(self.llm, tokens, possible_tokens, self.vocabs)
                 if character == False:
+                    choosed_values.append(self.llm.decode(selected_tokens))
                     param_index += 1
         result = self.llm.decode(tokens)
         return result
