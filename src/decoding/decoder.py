@@ -1,7 +1,9 @@
 from src.models import Prompt, FunctionDefinition
 from .generator import Generator
 from src.llm_sdk import Small_LLM_Model
+from typing import Any
 import copy
+import re
 
 
 class Decoder:
@@ -13,10 +15,11 @@ class Decoder:
         self.prompts = prompts
         self.funcs_def = funcs_def
         self.vocabs = vocabs
+        self.tokens_sets: dict[str, Any] = self.build_type_token_sets(self.vocabs)
         self.funcs_def_json = funcs_def_json
 
     def generation_loop(self) -> None:
-        generator = Generator(self.llm, self.vocabs, self.funcs_def)
+        generator = Generator(self.llm, self.vocabs, self.funcs_def, self.tokens_sets)
         available_functs_list = []
         for prompt in self.prompts:
             tokens_str = (
@@ -34,3 +37,23 @@ class Decoder:
             tokens_str += f"\n{prompt.value}\nAssistant: "
             tokens = self.llm.encode(tokens_str)
             result = generator.generate(prompt, tokens, len(tokens_str))
+    
+
+    def build_type_token_sets(self, vocabs: dict[str, int]) -> dict:
+        digit_tokens, dot_tokens, minus_tokens, quote_tokens, non_quote = [], [], [], [], []
+        for tok_str, tok_id in vocabs.items():
+            bare = tok_str.replace("Ġ", "")
+            if bare and re.fullmatch(r"\d+", bare):
+                digit_tokens.append(tok_id)
+            elif bare == ".":
+                dot_tokens.append(tok_id)
+            elif bare == "-":
+                minus_tokens.append(tok_id)
+            elif '"' in bare:
+                quote_tokens.append(tok_id)
+            else:
+                non_quote.append(tok_id)
+        return {
+            "digit": digit_tokens, "dot": dot_tokens,
+            "minus": minus_tokens, "quote": quote_tokens, "non_quote":non_quote
+        }

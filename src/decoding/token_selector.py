@@ -1,6 +1,7 @@
 from src.llm_sdk import Small_LLM_Model
 import copy
 import torch
+import numpy as np
 
 
 def append_best_token(
@@ -8,45 +9,31 @@ def append_best_token(
     possible_tokens: list[str], vocabs: dict[str, int]
         ) -> list[int]:
     if not possible_tokens:
-        return []
-    
-    possible_tokens_list = [
+        while self.llm.decode(tokens[-1]) != '\"':
+            logits = llm.get_logits_from_input_ids(tokens)
+
+    tokens_list = [
         llm.encode(t).squeeze(0).tolist() for t in possible_tokens
     ]
-    possible_tokens_list = [c for c in possible_tokens_list if c]
-    if not possible_tokens_list:
-        return []
-    if len(possible_tokens_list) == 1:
-        tokens.extend(possible_tokens_list[0])
-        print(llm.decode(possible_tokens_list[0]), end="", flush=True)
-        return possible_tokens_list[0]
 
-    chosen: list[int] = []
-    live = list(range(len(possible_tokens_list)))
-    pos = 0
-
-    while True:
-        live = [i for i in live if pos < len(possible_tokens_list[i])]
-        if len(live) <= 1:
+    i = 0
+    result_token = []
+    while i < len(max(tokens_list, key=len)):
+        tokens_to_choose = []
+        for token in tokens_list:
+            if valid_token(result_token, token, i):
+                tokens_to_choose.append(token[i])
+        if tokens_to_choose == []:
             break
-
-        logits = llm.get_logits_from_input_ids(tokens + chosen)
-        log_probs = torch.log_softmax(torch.tensor(logits), dim=0)
-
-        # only compare the tokens that live candidates actually offer at this position
-        next_token_options = {possible_tokens_list[i][pos] for i in live}
-        best_tok = max(next_token_options, key=lambda t: log_probs[t].item())
-
-        chosen.append(best_tok)
-        live = [i for i in live if possible_tokens_list[i][pos] == best_tok]
-        pos += 1
-
-    if len(live) == 1:
-        chosen.extend(possible_tokens_list[live[0]][pos:])
-
-    tokens.extend(chosen)
-    print(llm.decode(chosen), end="", flush=True)
-    return chosen
+        logits = llm.get_logits_from_input_ids(tokens)
+        best_token_id = max(tokens_to_choose, key=lambda token_id: logits[token_id])
+        tokens.append(best_token_id)
+        result_token.append(best_token_id)
+        if any(llm.decode(result_token) == funct for funct in possible_tokens):
+            break
+        i += 1
+    print(llm.decode(result_token), end="", flush=True)
+    return result_token
 
 
 def append_token(llm: Small_LLM_Model, character: str, tokens: list[int], vocabs: dict[str, int]) -> None:
