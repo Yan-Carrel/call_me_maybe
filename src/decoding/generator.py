@@ -84,7 +84,12 @@ class Generator:
             else:  # item is False -> generate the value
                 current_parameter = param_names[param_index]
                 generation_type = selected_funct.parameters[current_parameter]["type"]
-                param_gen.generate_string(self.llm, tokens, self.vocabs)
+                parameters = [param for param in selected_funct.parameters]
+                if selected_funct.parameters[parameters[param_index]]["type"] == "string":
+                    param_gen.generate_string(self.llm, tokens, self.vocabs)
+                else:
+                    param_gen.generate_number(self.llm, tokens, self.vocabs, tokens_sets)
+                param_index += 1
 
         result = self.llm.decode(tokens)
         return result

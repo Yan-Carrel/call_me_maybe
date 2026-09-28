@@ -6,7 +6,9 @@ install:
 	uv sync
 
 run:
-	uv run python -m src --functions_definition $(FUNCTIONS) --input $(INPUT) --output $(OUTPUT)
+	uv run python -m src \
+	--functions_definition $(FUNCTIONS) \
+	--input $(INPUT) --output $(OUTPUT)
 
 
 debug:
