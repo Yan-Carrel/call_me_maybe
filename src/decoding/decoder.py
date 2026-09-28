@@ -26,7 +26,10 @@ class Decoder:
                 "System: You are a function calling assistant. "
                 "Given a user prompt and a list of available "
                 "functions with their parameters and descriptions, "
-                "choose the appropriate function and extract its parameters.\n"
+                "choose the appropriate function and extract its parameters. "
+                "For number parameters, output the value as a decimal number, "
+                "for example 2.0, 16.0, or 144.0. "
+                "Do not repeat or extend the number with extra digits.\n"
                 "Functions:"
             )
             for funct in self.funcs_def:
