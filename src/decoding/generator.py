@@ -60,39 +60,64 @@ class Generator:
         return result, funct
     
     def generate_parameters(
-        self, tokens: list[int], prompt: Prompt,
-        selected_funct: FunctionDefinition,
-        tokens_sets: dict[str, Any]
-            ) -> str:
-        generation_order = ['"parameters":', "{"]
-        i = 0
-        while i < len(selected_funct.parameters):
-            generation_order.extend(["\"", True, "\"", ":", "\"", False, "\""])
-            if i < len(selected_funct.parameters) - 1:
-                generation_order.append(",")
-            i += 1
-        # generation_order.extend(["}", "}"])
+    self,
+    tokens: list[int],
+    prompt: Prompt,
+    selected_funct: FunctionDefinition,
+    tokens_sets: dict[str, Any]
+) -> str:
+
+        tokens_str = self.llm.decode(tokens)
+        starting_idx = len(tokens_str)
+        append_token(self.llm, '"parameters":', tokens, self.vocabs)
+        append_token(self.llm, '{', tokens, self.vocabs)
 
         param_names = list(selected_funct.parameters.keys())
-        param_index = 0
 
-        for item in generation_order:
-            if isinstance(item, str):
-                append_token(self.llm, item, tokens, self.vocabs)
-            elif item is True:
-                append_best_token(self.llm, tokens, param_names, self.vocabs)
-            else:  # item is False -> generate the value
-                current_parameter = param_names[param_index]
-                generation_type = selected_funct.parameters[current_parameter]["type"]
-                parameters = [param for param in selected_funct.parameters]
-                if selected_funct.parameters[parameters[param_index]]["type"] == "string":
-                    param_gen.generate_string(self.llm, tokens, self.vocabs)
-                else:
-                    param_gen.generate_number(self.llm, tokens, self.vocabs, tokens_sets)
-                param_index += 1
+        for i, param_name in enumerate(param_names):
 
-        result = self.llm.decode(tokens)
-        return result
+            if i > 0:
+                append_token(self.llm, ',', tokens, self.vocabs)
+
+            # "parameter_name":
+            append_token(self.llm, '"', tokens, self.vocabs)
+            append_token(self.llm, param_name, tokens, self.vocabs)
+            append_token(self.llm, '":', tokens, self.vocabs)
+
+            param_type = selected_funct.parameters[param_name]["type"]
+
+            if param_type == "string" and param_name == "regex":
+                tokens_str = self.llm.decode(tokens)
+                tokens_str[tokens_str.rindex("{\"prompt\":"):]
+                append_token(self.llm, '"', tokens, self.vocabs)
+                param_gen.generate_regex(
+                    self.llm,
+                    tokens,
+                    self.vocabs,
+                    tokens_sets,
+                    tokens_str[tokens_str.rindex("{\"prompt\":"):]
+                )
+
+            elif param_type == "string":
+                append_token(self.llm, '"', tokens, self.vocabs)
+
+                param_gen.generate_string(
+                    self.llm,
+                    tokens,
+                    tokens_sets
+                )
+
+            elif param_type == "number":
+                param_gen.generate_number(
+                    self.llm,
+                    tokens,
+                    self.vocabs,
+                    tokens_sets
+                )
+
+        append_token(self.llm, '}', tokens, self.vocabs)
+
+        return self.llm.decode(tokens)
 
     def split_character(self, string: str) -> list[str]:
         words = string.split(" ")

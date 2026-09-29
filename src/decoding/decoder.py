@@ -29,7 +29,9 @@ class Decoder:
                 "choose the appropriate function and extract its parameters. "
                 "For number parameters, output the value as a decimal number, "
                 "for example 2.0, 16.0, or 144.0. "
-                "Do not repeat or extend the number with extra digits.\n"
+                "Do not repeat or extend the number with extra digits. Make\n"
+                "sure to properly close all the brackets. Write a valid, fully closed regular expression:"
+                r"example: (\\d+)"
                 "Functions:"
             )
             for funct in self.funcs_def:
@@ -43,20 +45,34 @@ class Decoder:
     
 
     def build_type_token_sets(self, vocabs: dict[str, int]) -> dict:
-        digit_tokens, dot_tokens, minus_tokens, quote_tokens, non_quote = [], [], [], [], []
+        digit_tokens, dot_tokens, minus_tokens, quote_tokens, non_quote, closing_brackets = [], [], [], [], [], []
         for tok_str, tok_id in vocabs.items():
             bare = tok_str.replace("Ġ", "")
+
             if bare and re.fullmatch(r"\d+", bare):
                 digit_tokens.append(tok_id)
+
             elif bare == ".":
                 dot_tokens.append(tok_id)
+
             elif bare == "-":
                 minus_tokens.append(tok_id)
-            elif '"' in bare:
+
+            elif bare == '"':
                 quote_tokens.append(tok_id)
+            
+            elif bare in ["}", "]", ")"]:
+                closing_brackets.append(tok_id)
+
+            elif '"' in bare:
+                pass
+
+            elif "," in bare:
+                pass
+
             else:
                 non_quote.append(tok_id)
         return {
             "digit": digit_tokens, "dot": dot_tokens,
-            "minus": minus_tokens, "quote": quote_tokens, "non_quote":non_quote
+            "minus": minus_tokens, "quote": quote_tokens, "non_quote":non_quote, "bracket":closing_brackets
         }

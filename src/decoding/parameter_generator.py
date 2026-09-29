@@ -31,28 +31,80 @@ def generate_number(llm: Small_LLM_Model, tokens: list[int], vocabs: dict[str, i
         elif llm.decode(best_token) != "." and used_dot:
             number_after_dot = True
  
+        if "\"" in llm.decode(best_token):
+            break
+            # print("break")
         result_token.append(best_token)
         tokens.append(best_token)
         next_token_str = llm.decode(best_token)
         print(next_token_str, end="", flush=True)
 
         i += 1
-        if "\"" in next_token_str:
-            break
 
 
-def generate_string(llm: Small_LLM_Model, tokens: list[int], vocabs: dict[str, int]) -> None:
+def generate_string(llm: Small_LLM_Model, tokens: list[int], type_sets) -> None:
     result_token = []
     while True:
+        allowed = []
+        allowed += type_sets["digit"] + type_sets["quote"] + type_sets["non_quote"] + type_sets["dot"] + type_sets["minus"] + type_sets["bracket"]
         logits = llm.get_logits_from_input_ids(tokens)
+        logits = mask_logits(logits, allowed)
         best_token = logits.index(max(logits))
         result_token.append(best_token)
         tokens.append(best_token)
         next_token_str = llm.decode(best_token)
-        if "\"" in next_token_str:
-            break
         print(next_token_str, end="", flush=True)
 
+        if "\"" in next_token_str:
+            break
+
+def generate_regex(llm: Small_LLM_Model, tokens: list[int], vocabs, type_sets, text: str) -> None:
+    result_token = []
+    while True:
+        allowed = []
+        allowed += type_sets["digit"] + type_sets["non_quote"] + type_sets["dot"] + type_sets["minus"]
+        valid, bracket = bracket_validator(text)
+        if not valid:
+            allowed.append(vocabs[bracket])
+        else:
+            allowed += type_sets["quote"]
+        logits = llm.get_logits_from_input_ids(tokens)
+        mask_logits(logits, allowed)
+        best_token = logits.index(max(logits))
+        result_token.append(best_token)
+        tokens.append(best_token)
+        next_token_str = llm.decode(best_token)
+        print(next_token_str, end="", flush=True)
+
+        if "\"" in next_token_str:
+            break
+
+
+def bracket_validator(text: str) -> tuple[bool, str | None]:
+    brackets: dict[str, str] = {'{': '}', '(': ')', '[': ']'}
+    closers = set(brackets.values())
+    bracket_list: list[str] = []
+    for c in text:
+        if c in brackets:
+            bracket_list.append(c)
+        elif c in closers:
+            if not bracket_list or brackets[bracket_list[-1]] != c:
+                return False, c
+
+            bracket_list.pop()
+        elif c == '"':
+            backslashes = 0
+            i = text.index(c) - 1
+
+            while i >= 0 and text[i] == "\\":
+                backslashes += 1
+                i -= 1
+
+            if backslashes % 2 == 0:
+                return False, c
+    if bracket_list:
+        return False, brackets[bracket_list[-1]]
+    return True, None
 
 
 def mask_logits(
