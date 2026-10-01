@@ -5,6 +5,7 @@ import src.decoding.parameter_generator as param_gen
 from torch import Tensor
 from typing import Any
 import re
+import json
 
 
 class Generator:
@@ -29,12 +30,16 @@ class Generator:
         return result
 
     def generate_prompt(self, prompt: Prompt, tokens: list[int]) -> str:
-        generation_order = ["{", '"prompt":']
-        generation_order.extend(self.split_character(prompt.value))
-        generation_order.append("\",")
+        generation_order = [
+            "{",
+            '"prompt":',
+            json.dumps(prompt.value, ensure_ascii=False),
+            ",",
+        ]
 
-        for character in generation_order:
-            append_token(self.llm, character, tokens, self.vocabs)
+        for text in generation_order:
+            append_token(self.llm, text, tokens, self.vocabs)
+
         return self.llm.decode(tokens)
 
     def generate_function_name(
@@ -76,10 +81,9 @@ class Generator:
 
         for i, param_name in enumerate(param_names):
 
-            if i > 0:
+            if i > 0 and self.llm.decode(tokens)[-1] != ',':
                 append_token(self.llm, ',', tokens, self.vocabs)
 
-            # "parameter_name":
             append_token(self.llm, '"', tokens, self.vocabs)
             append_token(self.llm, param_name, tokens, self.vocabs)
             append_token(self.llm, '":', tokens, self.vocabs)
@@ -94,8 +98,7 @@ class Generator:
                     self.llm,
                     tokens,
                     self.vocabs,
-                    tokens_sets,
-                    tokens_str[tokens_str.rindex("{\"prompt\":"):]
+                    tokens_sets
                 )
 
             elif param_type == "string":
@@ -115,7 +118,7 @@ class Generator:
                     tokens_sets
                 )
 
-        append_token(self.llm, '}', tokens, self.vocabs)
+        append_token(self.llm, '}}', tokens, self.vocabs)
 
         return self.llm.decode(tokens)
 

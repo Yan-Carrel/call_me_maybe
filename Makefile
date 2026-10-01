@@ -8,7 +8,8 @@ install:
 run:
 	uv run python -m src \
 	--functions_definition $(FUNCTIONS) \
-	--input $(INPUT) --output $(OUTPUT)
+	--input $(INPUT) \
+	--output $(OUTPUT)
 
 
 debug:

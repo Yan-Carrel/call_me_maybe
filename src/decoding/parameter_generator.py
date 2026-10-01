@@ -46,8 +46,13 @@ def generate_string(llm: Small_LLM_Model, tokens: list[int], type_sets) -> None:
     result_token = []
     while True:
         allowed = []
-        allowed += type_sets["digit"] + type_sets["quote"] + type_sets["non_quote"] + type_sets["dot"] + type_sets["minus"] + type_sets["bracket"]
+        allowed += type_sets["digit"] + type_sets["quote"] + type_sets["non_quote"] + type_sets["dot"] + type_sets["minus"]
+        if llm.decode(tokens).endswith('"'):
+            type_sets["bracket"]
         logits = llm.get_logits_from_input_ids(tokens)
+        for token_id in type_sets["forbidden_quote"]:
+            logits[token_id] = float("-inf")
+        logits[854] = -math.inf
         logits = mask_logits(logits, allowed)
         best_token = logits.index(max(logits))
         result_token.append(best_token)
@@ -58,18 +63,10 @@ def generate_string(llm: Small_LLM_Model, tokens: list[int], type_sets) -> None:
         if "\"" in next_token_str:
             break
 
-def generate_regex(llm: Small_LLM_Model, tokens: list[int], vocabs, type_sets, text: str) -> None:
+def generate_regex(llm: Small_LLM_Model, tokens: list[int], vocabs, type_sets) -> None:
     result_token = []
     while True:
-        allowed = []
-        allowed += type_sets["digit"] + type_sets["non_quote"] + type_sets["dot"] + type_sets["minus"]
-        valid, bracket = bracket_validator(text)
-        if not valid:
-            allowed.append(vocabs[bracket])
-        else:
-            allowed += type_sets["quote"]
         logits = llm.get_logits_from_input_ids(tokens)
-        mask_logits(logits, allowed)
         best_token = logits.index(max(logits))
         result_token.append(best_token)
         tokens.append(best_token)
