@@ -102,6 +102,8 @@ class Decoder:
                 quote_tokens.append(tok_id)
             elif "}" in bare:
                 closing_brackets.append(tok_id)
+            elif '"' in bare and ',' in bare:
+                pass
             else:
                 non_quote.append(tok_id)
 
