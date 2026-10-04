@@ -95,27 +95,21 @@ class Generator:
                 tokens_str[tokens_str.rindex("{\"prompt\":"):]
                 append_token(self.llm, '"', tokens, self.vocabs)
                 param_gen.generate_regex(
-                    self.llm,
-                    tokens,
-                    self.vocabs,
-                    tokens_sets
+                    self.llm, tokens, self.vocabs, tokens_sets
                 )
 
             elif param_type == "string":
                 append_token(self.llm, '"', tokens, self.vocabs)
 
                 param_gen.generate_string(
-                    self.llm,
-                    tokens,
-                    tokens_sets
+                    self.llm, tokens, tokens_sets
                 )
+                if not self.llm.decode(tokens).endswith("\""):
+                    append_token(self.llm, '"', tokens, self.vocabs)
 
             elif param_type == "number":
                 param_gen.generate_number(
-                    self.llm,
-                    tokens,
-                    self.vocabs,
-                    tokens_sets
+                    self.llm, tokens, self.vocabs, prompt.value, tokens_sets
                 )
 
         append_token(self.llm, '}}', tokens, self.vocabs)
