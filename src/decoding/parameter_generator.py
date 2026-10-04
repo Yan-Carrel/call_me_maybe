@@ -13,6 +13,7 @@ def generate_number(llm: Small_LLM_Model, tokens: list[int], vocabs: dict[str, i
     nbs_in_prompt = re.findall(r"-*\d+\.\d+|-*\d+", prompt)
     formatted_nbs = format_nbs(nbs_in_prompt)
     i = 0
+    max_tokens = 5
     while True:
         allowed = []
         allowed += type_sets["digit"]
@@ -35,6 +36,9 @@ def generate_number(llm: Small_LLM_Model, tokens: list[int], vocabs: dict[str, i
                 allowed = type_sets["digit"]
             elif i >= 4:
                 allowed = type_sets["quote"]
+        else:
+            if any(True for nb in formatted_nbs if not nb.startswith(llm.decode(result_token))):
+                break
         
         logits = llm.get_logits_from_input_ids(tokens)
         logits = mask_logits(logits, allowed)
@@ -56,6 +60,8 @@ def generate_number(llm: Small_LLM_Model, tokens: list[int], vocabs: dict[str, i
         print(next_token_str, end="", flush=True)
 
         i += 1
+        if i >= max_tokens and not nbs_in_prompt:
+            break
 
 
 def format_nbs(nbs: list[str]) -> list[str]:
@@ -69,8 +75,10 @@ def format_nbs(nbs: list[str]) -> list[str]:
     return result
 
 
-def generate_string(llm: Small_LLM_Model, tokens: list[int], type_sets) -> None:
+def generate_string(llm: Small_LLM_Model, tokens: list[int], prompt: str, type_sets) -> None:
     result_token = []
+    max_tokens = len(prompt) + 1
+    i = 0
     while True:
         allowed = []
         allowed += type_sets["digit"] + type_sets["quote"] + type_sets["non_quote"] + type_sets["dot"] + type_sets["minus"]
@@ -90,9 +98,13 @@ def generate_string(llm: Small_LLM_Model, tokens: list[int], type_sets) -> None:
                 print(next_token_str, end="", flush=True)
             if not next_token_str.endswith('\\"'):
                 break
+        if i >= max_tokens:
+            result_token.append(self.vocabs['"'])
+            break
         result_token.append(best_token)
         tokens.append(best_token)
         print(next_token_str, end="", flush=True)
+        i += 1
 
 
 def generate_regex(llm: Small_LLM_Model, tokens: list[int], vocabs, type_sets) -> None:

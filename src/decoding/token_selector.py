@@ -37,44 +37,14 @@ def append_best_token(
 
 
 def append_token(llm: Small_LLM_Model, character: str, tokens: list[int], vocabs: dict[str, int]) -> None:
-    try:
-        tokens.append(vocabs[character])
-        print(llm.decode(vocabs[character]), end="", flush=True)
-    except KeyError:
-        try:
-            tokens.append(vocabs["Ġ" + character])
-            print(llm.decode(vocabs["Ġ" + character]), end="", flush=True)
-        except KeyError:
-            split_and_append(llm, tokens, character, vocabs)
+    result = llm.encode(character).squeeze(0).tolist()
+    tokens.extend(result)
+    print(llm.decode(result), end="", flush=True)
+
 
 def valid_token(result_token: list[int], token: list[int], i: int) -> bool:
     return i < len(token) and token[:i] == result_token
 
-def split_and_append(
-    llm: Small_LLM_Model, tokens: list[int],
-    character: str, vocabs: dict[str, int]
-        ) -> None:
-    i = 0
-    idx = len(character) - i
-    first_half = character[:idx]
-    second_half = character[idx:]
-    while not exist_in_vocabs(first_half, vocabs):
-        i += 1
-        idx = len(character) - i
-        first_half = character[:idx]
-        second_half = character[idx:]
-    try:
-        if first_half == " ":
-            tokens.append(vocabs["Ġ"])
-            print(llm.decode(vocabs["Ġ"]), end="", flush=True)
-        else:
-            tokens.append(vocabs[first_half])
-            print(llm.decode(vocabs[first_half]), end="", flush=True)
-    except KeyError:
-        tokens.append(vocabs["Ġ" + first_half])
-        print(llm.decode(vocabs["Ġ" + first_half]), end="", flush=True)
-    if i > 0:
-        split_and_append(llm, tokens, second_half, vocabs)
 
 def exist_in_vocabs(character: str, vocabs: dict[str, int]) -> bool:
     try:

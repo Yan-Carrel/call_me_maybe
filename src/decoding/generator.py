@@ -39,7 +39,7 @@ class Generator:
 
         for text in generation_order:
             append_token(self.llm, text, tokens, self.vocabs)
-
+        
         return self.llm.decode(tokens)
 
     def generate_function_name(
@@ -102,7 +102,7 @@ class Generator:
                 append_token(self.llm, '"', tokens, self.vocabs)
 
                 param_gen.generate_string(
-                    self.llm, tokens, tokens_sets
+                    self.llm, tokens, prompt.value, tokens_sets
                 )
                 if not self.llm.decode(tokens).endswith("\""):
                     append_token(self.llm, '"', tokens, self.vocabs)
