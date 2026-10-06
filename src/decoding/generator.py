@@ -1,6 +1,6 @@
 from .token_selector import append_token, append_best_token
 from src.models import Prompt, FunctionDefinition
-from src.llm_sdk import Small_LLM_Model
+from .llm import Llm
 import src.decoding.parameter_generator as param_gen
 from torch import Tensor
 from typing import Any
@@ -10,7 +10,7 @@ import json
 
 class Generator:
     def __init__(
-        self, llm: Small_LLM_Model,
+        self, llm: Llm,
         vocabs: dict[str, int], funcs_def: list[FunctionDefinition],
         tokens_sets: dict[str, Any]
             ) -> str:
@@ -20,9 +20,8 @@ class Generator:
         self.tokens_sets = tokens_sets
     
     def generate(
-        self, prompt: Prompt, tokens_tensor: Tensor, len_srt: int
+        self, prompt: Prompt, tokens: list[int], len_srt: int
             ) -> str:
-        tokens = tokens_tensor.squeeze(0).tolist()
         result = self.generate_prompt(prompt, tokens)
         result, selected_funct = self.generate_function_name(tokens)
         result = self.generate_parameters(tokens, prompt, selected_funct, self.tokens_sets)
@@ -40,7 +39,7 @@ class Generator:
         for text in generation_order:
             append_token(self.llm, text, tokens, self.vocabs)
         
-        return self.llm.decode(tokens)
+        return self.llm.llm_decode(tokens)
 
     def generate_function_name(
         self, tokens: list[int],
@@ -57,8 +56,8 @@ class Generator:
                 selected_tokens = append_best_token(
                     self.llm, tokens, item, self.vocabs
                 )
-                selected_name = self.llm.decode(selected_tokens)
-        result = self.llm.decode(tokens)
+                selected_name = self.llm.llm_decode(selected_tokens)
+        result = self.llm.llm_decode(tokens)
         funct = next(
             funct for funct in self.funcs_def
             if funct.name == selected_name)
@@ -72,7 +71,7 @@ class Generator:
     tokens_sets: dict[str, Any]
 ) -> str:
 
-        tokens_str = self.llm.decode(tokens)
+        tokens_str = self.llm.llm_decode(tokens)
         starting_idx = len(tokens_str)
         append_token(self.llm, '"parameters":', tokens, self.vocabs)
         append_token(self.llm, '{', tokens, self.vocabs)
@@ -81,7 +80,7 @@ class Generator:
 
         for i, param_name in enumerate(param_names):
 
-            if i > 0 and self.llm.decode(tokens)[-1] != ',':
+            if i > 0 and self.llm.llm_decode(tokens)[-1] != ',':
                 append_token(self.llm, ',', tokens, self.vocabs)
 
             append_token(self.llm, '"', tokens, self.vocabs)
@@ -91,7 +90,7 @@ class Generator:
             param_type = selected_funct.parameters[param_name]["type"]
 
             if param_type == "string" and param_name == "regex":
-                tokens_str = self.llm.decode(tokens)
+                tokens_str = self.llm.llm_decode(tokens)
                 tokens_str[tokens_str.rindex("{\"prompt\":"):]
                 append_token(self.llm, '"', tokens, self.vocabs)
                 param_gen.generate_regex(
@@ -102,9 +101,9 @@ class Generator:
                 append_token(self.llm, '"', tokens, self.vocabs)
 
                 param_gen.generate_string(
-                    self.llm, tokens, prompt.value, tokens_sets
+                    self.llm, tokens, prompt.value, self.vocabs, tokens_sets
                 )
-                if not self.llm.decode(tokens).endswith("\""):
+                if not self.llm.llm_decode(tokens).endswith("\""):
                     append_token(self.llm, '"', tokens, self.vocabs)
 
             elif param_type == "number":
@@ -114,7 +113,7 @@ class Generator:
 
         append_token(self.llm, '}}', tokens, self.vocabs)
 
-        return self.llm.decode(tokens)
+        return self.llm.llm_decode(tokens)
 
     def split_character(self, string: str) -> list[str]:
         words = string.split(" ")

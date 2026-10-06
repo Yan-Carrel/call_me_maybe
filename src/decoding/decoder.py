@@ -1,5 +1,6 @@
 from src.models import Prompt, FunctionDefinition
 from .generator import Generator
+from .llm import Llm
 from src.llm_sdk import Small_LLM_Model
 from typing import Any
 import copy
@@ -9,10 +10,12 @@ import json
 
 class Decoder:
     def __init__(
-        self, llm: Small_LLM_Model, funcs_def_json: str, funcs_def: list[FunctionDefinition],
+        self, llm_sdk: Small_LLM_Model, funcs_def_json: str,
+        funcs_def: list[FunctionDefinition],
         prompts: list[Prompt], vocabs: dict[str, int],
             ) -> None:
-        self.llm = llm
+        list_vocabs = list(vocabs.keys())
+        self.llm = Llm(llm=llm_sdk, vocabs=vocabs, vocabs_str=list_vocabs)
         self.prompts = prompts
         self.funcs_def = funcs_def
         self.vocabs = vocabs
@@ -21,25 +24,17 @@ class Decoder:
 
     def _build_prompt(self, funcs_def: list[FunctionDefinition], user_prompt: str) -> str:
         system_content = (
-            "System: You are a function calling assistant. "
-            "Given a user prompt and a list of available "
-            "functions with their parameters and descriptions, "
-            "choose the appropriate function and extract its parameters. "
-            "When a parameter is a name or word taken from the user prompt, "
-            "copy it EXACTLY as it appears, letter for letter. Do not add, "
-            "remove, repeat, or swap any letters.\n"
-            "Example: for the prompt \"Greet shrek\", the name parameter must be "
-            "exactly \"shrek\" - not \"shrrek\", not \"shreek\", not \"shrek \" "
-            "with a trailing space.\n"
-            "For number parameters, output the value as a decimal number, "
-            "with every digit the correct value actually needs, including "
-            "all digits after the decimal point. "
-            "Example: 13.45 has two digits after the point (4 and 5) - do not "
-            "stop at 13.4. A whole number like 16 should be written 16.0.\n"
-            "Never pad a number with extra, unrelated digits, and never repeat "
-            "the same digit over and over.\n"
-            "Make sure to properly close all the brackets and quotes, for example "
-            "\"*\".\n"
+            "System: You are a function calling assistant.\n"
+
+            "Given a user prompt and a list of functions, select the correct function and output its parameters.\n"
+            "Rules:\n"
+            "- Copy text parameters exactly as they appear in the user prompt.\n"
+            "- Do not modify, add, remove, or repeat characters.\n"
+            "- Output decimal numbers exactly as written by the user.\n"
+            "- Do not add or repeat digits.\n"
+            "- Integers must be written as decimals, e.g. 16 -> 16.0.\n"
+            "- Return valid JSON with all quotes and brackets correctly closed.\n"
+
             "Functions:"
         )
 
@@ -57,11 +52,12 @@ class Decoder:
         )
 
     def generation_loop(self) -> None:
+        small_llm_model = Small_LLM_Model()
         generator = Generator(self.llm, self.vocabs, self.funcs_def, self.tokens_sets)
 
         for prompt in self.prompts:
             tokens_str = self._build_prompt(self.funcs_def, prompt.value)
-            tokens = self.llm.encode(tokens_str)
+            tokens = self.llm.llm_encode(tokens_str)
             result = generator.generate(prompt, tokens, len(tokens))
 
             start = result.find('{"prompt":')
@@ -90,7 +86,7 @@ class Decoder:
         forbidden_quotes = {"”", "“", "‟"}
 
         for token_text, token_id in vocabs.items():
-            decoded = self.llm.decode([token_id])
+            decoded = self.llm.llm_decode([token_id])
 
             if (
                 any(char in token_text for char in forbidden_quotes)
