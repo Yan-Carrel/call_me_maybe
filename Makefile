@@ -1,6 +1,6 @@
 FUNCTIONS ?= data/input/functions_definition.json
 INPUT ?= data/input/function_calling_tests.json
-OUTPUT ?= data/output/function_calls.json
+OUTPUT ?= data/output/function_calling_results.json
 
 install:
 	uv sync
@@ -13,7 +13,10 @@ run:
 
 
 debug:
-	uv run python -m pdb -m src $(FUNCTIONS) $(INPUT) $(OUTPUT)
+	uv run python -m pdb -m src \
+	--functions_definition $(FUNCTIONS) \
+	--input $(INPUT) \
+	--output $(OUTPUT)
 
 clean:
 	rm -rf __pycache__ .mypy_cache .pytest_cache graph_pac/.mypy_cache

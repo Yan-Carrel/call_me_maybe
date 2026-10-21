@@ -1,2 +1,2 @@
 [flake8]
-exclude = .venv,.git,__pycache__,.mypy_cache,.pytest_cache, llm_sdk
+exclude = .venv,.git,__pycache__,.mypy_cache,.pytest_cache, llm_sdk, src/llm_sdk/, .flake_venv

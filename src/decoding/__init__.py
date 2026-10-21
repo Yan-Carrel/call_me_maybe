@@ -1,1 +1,5 @@
-from src.decoding.decoder import Decoder
+"""Expose the Decoder class from the decoding package."""
+from .decoder import Decoder
+
+
+__all__ = ["Decoder"]

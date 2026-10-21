@@ -1,39 +1,61 @@
+"""Decode language model outputs into structured function calls."""
+from pydantic import BaseModel, ConfigDict, Field
 from src.models import Prompt, FunctionDefinition
 from .generator import Generator
 from .llm import Llm
-from src.llm_sdk import Small_LLM_Model
+from pathlib import Path
 from typing import Any
-import copy
 import re
 import json
 
 
-class Decoder:
-    def __init__(
-        self, llm_sdk: Small_LLM_Model, funcs_def_json: str,
-        funcs_def: list[FunctionDefinition],
-        prompts: list[Prompt], vocabs: dict[str, int],
-            ) -> None:
-        list_vocabs = list(vocabs.keys())
-        self.llm = Llm(llm=llm_sdk, vocabs=vocabs, vocabs_str=list_vocabs)
-        self.prompts = prompts
-        self.funcs_def = funcs_def
-        self.vocabs = vocabs
-        self.tokens_sets: dict[str, Any] = self.build_type_token_sets(self.vocabs)
-        self.funcs_def_json = funcs_def_json
+class Decoder(BaseModel):
+    """Decode prompts into function calls using constrained generation."""
 
-    def _build_prompt(self, funcs_def: list[FunctionDefinition], user_prompt: str) -> str:
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    llm: Llm
+    funcs_def_json: str
+    funcs_def: list[FunctionDefinition]
+    prompts: list[Prompt]
+    vocabs: dict[str, int]
+    file_name: str
+
+    tokens_sets: dict[str, Any] = Field(default_factory=dict)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize token groups after model creation."""
+        self.tokens_sets = self.type_token_sets(self.vocabs)
+
+    def _build_prompt(
+        self, funcs_def: list[FunctionDefinition], user_prompt: str
+            ) -> str:
+        """Build the system and user messages for function calling.
+
+        Args:
+            funcs_def: Available function definitions.
+            user_prompt: The user's input prompt.
+
+        Returns:
+            The formatted conversation string for the language model.
+        """
         system_content = (
             "System: You are a function calling assistant.\n"
 
-            "Given a user prompt and a list of functions, select the correct function and output its parameters.\n"
+            "Given a user prompt and a list of functions, select the correct "
+            "function and output its parameters.\n"
             "Rules:\n"
-            "- Copy text parameters exactly as they appear in the user prompt.\n"
+            "- Copy text parameters exactly as "
+            "they appear in the user prompt.\n"
             "- Do not modify, add, remove, or repeat characters.\n"
             "- Output decimal numbers exactly as written by the user.\n"
             "- Do not add or repeat digits.\n"
+            "- End each output with single double quotes.\n"
             "- Integers must be written as decimals, e.g. 16 -> 16.0.\n"
-            "- Return valid JSON with all quotes and brackets correctly closed.\n"
+            "Example:\n"
+            "prompt: Greet shrek\n"
+            '"parameters":{"name":"shrek"}}\n\n'
+            "- Return valid JSON with all quotes correctly closed.\n"
 
             "Functions:"
         )
@@ -52,29 +74,47 @@ class Decoder:
         )
 
     def generation_loop(self) -> None:
-        small_llm_model = Small_LLM_Model()
-        generator = Generator(self.llm, self.vocabs, self.funcs_def, self.tokens_sets)
+        """Generate function calls and save valid JSON results.
 
+        Encodes each prompt, generates a response, extracts the JSON
+        object, and appends successfully decoded results to the output file.
+        """
+        generator = Generator(
+            llm=self.llm, vocabs=self.vocabs,
+            funcs_def=self.funcs_def, tokens_sets=self.tokens_sets)
+        results = []
+        output_path = Path(self.file_name)
         for prompt in self.prompts:
-            tokens_str = self._build_prompt(self.funcs_def, prompt.value)
+            tokens_str = self._build_prompt(self.funcs_def, prompt.prompt)
             tokens = self.llm.llm_encode(tokens_str)
             result = generator.generate(prompt, tokens, len(tokens))
 
             start = result.find('{"prompt":')
 
             generated = result[start:]
-            CYAN = "\033[96m"
-            RESET = "\033[0m"
             try:
                 decoded, _ = json.JSONDecoder().raw_decode(generated)
-                print(CYAN + json.dumps(decoded, indent=2) + RESET)
+                results.append(decoded)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self.file_name, "w", encoding="utf-8") as json_file:
+                    json_file.write(json.dumps(
+                        results, indent=4, ensure_ascii=False))
             except json.JSONDecodeError:
-                print(generated)
+                print(f"Error, Invalid JSON: {decoded}")
 
         return
 
+    def type_token_sets(self, vocabs: dict[str, int]) -> dict:
+        """Group vocabulary token IDs according to their character types.
 
-    def build_type_token_sets(self, vocabs: dict[str, int]) -> dict:
+        Args:
+            vocabs: Mapping of token strings to their integer IDs.
+
+        Returns:
+            A dictionary containing token IDs grouped into digits,
+            decimal points, minus signs, quotes, non-quote tokens,
+            closing brackets, and forbidden quotation marks.
+        """
         digit_tokens = []
         dot_tokens = []
         minus_tokens = []
