@@ -162,7 +162,16 @@ uv run python -m src \
     --model_name "Qwen/Qwen3-0.6B"
 ```
 
-The default model is determined by the program's configuration. Check the argument definition in the source code to confirm its exact value.
+#### Supported models
+
+The project reimplements the tokenizer (`src/decoding/llm.py`) from the model's vocabulary file, and builds prompts with the ChatML template (`<|im_start|>` / `<|im_end|>`). A model is therefore supported if it uses:
+
+- a **byte-level BPE** vocabulary (GPT-2 / Qwen style, where a space is `Ġ`), and
+- the **ChatML** chat template.
+
+In practice, that means the Qwen family, example: `Qwen/Qwen2.5-0.5B-Instruct`
+
+**Not supported:** models with a different tokenizer or chat template, such as Llama or Gemma (SentencePiece, `▁` marker), or Mistral. They might work but the result might be unexpected.
 
 ### Other Makefile rules
 
