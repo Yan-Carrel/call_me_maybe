@@ -91,7 +91,7 @@ class Decoder(BaseModel):
                     f"<|im_start|>assistant\n"
                     )
             )
-            tokens = tokens_prompt
+            tokens = tokens_prompt[:]
             tokens.extend(additional_prompt)
             result = generator.generate(prompt, tokens, len(tokens))
             start = result.find('{"prompt":')
