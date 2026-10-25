@@ -33,18 +33,26 @@ def parsing() -> tuple[list[Prompt], list[FunctionDefinition], str, str, str]:
     funcs_call = args.input or paths[1]
     funcs_call_result = args.output or paths[2]
 
-    with open(funcs_def, "r") as funcs_def_file:
-        funcs_def_list = []
-        try:
-            funcs_def_list = json.load(funcs_def_file)
-        except Exception:
-            print("Error, json file is invalid.")
-    with open(funcs_call, "r") as input_file:
-        input_list = []
-        try:
-            input_list = json.load(input_file)
-        except Exception:
-            print("Error, json file is invalid.")
+    try:
+        with open(funcs_def, "r") as funcs_def_file:
+            funcs_def_list = []
+            try:
+                funcs_def_list = json.load(funcs_def_file)
+            except Exception:
+                print("Error, json file is invalid.")
+    except FileNotFoundError as e:
+        print(e)
+        sys.exit(0)
+    try:
+        with open(funcs_call, "r") as input_file:
+            input_list = []
+            try:
+                input_list = json.load(input_file)
+            except Exception:
+                print("Error, json file is invalid.")
+    except FileNotFoundError as e:
+        print(e)
+        sys.exit(0)
 
     if not args.model_name:
         model_name = "Qwen/Qwen3-0.6B"

@@ -28,7 +28,7 @@ class Decoder(BaseModel):
         self.tokens_sets = self.type_token_sets(self.vocabs)
 
     def _build_prompt(
-        self, funcs_def: list[FunctionDefinition], user_prompt: str
+        self, funcs_def: list[FunctionDefinition]
             ) -> str:
         """Build the system and user messages for function calling.
 
@@ -69,8 +69,6 @@ class Decoder(BaseModel):
 
         return (
             f"<|im_start|>system\n{system_content}<|im_end|>\n"
-            f"<|im_start|>user\n{user_prompt}<|im_end|>\n"
-            f"<|im_start|>assistant\n"
         )
 
     def generation_loop(self) -> None:
@@ -84,11 +82,18 @@ class Decoder(BaseModel):
             funcs_def=self.funcs_def, tokens_sets=self.tokens_sets)
         results = []
         output_path = Path(self.file_name)
+        tokens_str = self._build_prompt(self.funcs_def)
+        tokens_prompt = self.llm.llm_encode(tokens_str)
         for prompt in self.prompts:
-            tokens_str = self._build_prompt(self.funcs_def, prompt.prompt)
-            tokens = self.llm.llm_encode(tokens_str)
+            additional_prompt = (
+                self.llm.llm_encode(
+                    f"<|im_start|>user\n{prompt}<|im_end|>\n"
+                    f"<|im_start|>assistant\n"
+                    )
+            )
+            tokens = tokens_prompt
+            tokens.extend(additional_prompt)
             result = generator.generate(prompt, tokens, len(tokens))
-
             start = result.find('{"prompt":')
 
             generated = result[start:]
@@ -100,7 +105,7 @@ class Decoder(BaseModel):
                     json_file.write(json.dumps(
                         results, indent=4, ensure_ascii=False))
             except json.JSONDecodeError:
-                print(f"Error, Invalid JSON: {decoded}")
+                print(f"Error, Invalid JSON: {generated}")
 
         return
 

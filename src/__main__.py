@@ -1,5 +1,6 @@
 try:
     import json
+    import sys
     import src.decoding
     from src.parsing import parsing
     from src.llm_sdk import Small_LLM_Model
@@ -22,6 +23,9 @@ if __name__ == "__main__":
             llm=small_llm, vocabs=vocabs, vocabs_str=list(vocabs.keys()),
             model_name=model_name
             )
+        if len(funcs_def) < 1:
+            print("Error, functions_definition.json cannot be an empty.")
+            sys.exit(0)
         decoder = src.decoding.Decoder(
             llm=llm, funcs_def_json=json.dumps(funcs_def_json),
             funcs_def=funcs_def, prompts=prompts,
